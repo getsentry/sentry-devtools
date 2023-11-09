@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sentry_devenv"
-version = "1.0.0"
+version = "1.1.1"
 authors = [
   { name="Joshua Li", email="joshua.li@sentry.io" },
   { name="Ian Woodard", email="ian.woodard@sentry.io" },
@@ -21,6 +21,9 @@ classifiers = [
 dependencies = [
   "typing_extensions",
 ]
+
+[tool.setuptools.package-data]
+"devenv" = ["py.typed"]
 
 [tool.setuptools.packages]
 find = {}
