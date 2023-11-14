@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import configparser
 import os
 import shutil
 import subprocess
+import sys
 from collections.abc import Sequence
 from typing import Dict
 from typing import Tuple
@@ -11,8 +13,10 @@ from typing import Tuple
 from devenv import constants
 from devenv import pythons
 from devenv.constants import home
+from devenv.constants import MACHINE
 from devenv.constants import VOLTA_HOME
 from devenv.lib import proc
+from devenv.lib import volta
 
 help = "Resyncs the environment."
 
@@ -86,13 +90,20 @@ def main(context: Dict[str, str], argv: Sequence[str] | None = None) -> int:
 
     reporoot = context["reporoot"]
 
-    with open(f"{reporoot}/.python-version", "rt") as f:
-        python_version = f.read().strip()
+    repo_config = configparser.ConfigParser()
+    repo_config.read(f"{reporoot}/devenv/config.ini")
+
+    python_version = repo_config["python"]["version"]
+    url = repo_config["python"][f"{sys.platform}_{MACHINE}"]
+    sha256 = repo_config["python"][f"{sys.platform}_{MACHINE}_sha256"]
 
     venv = f"{reporoot}/.venv"
     if not os.path.exists(venv):
         print(f"virtualenv for {repo} doesn't exist, creating one at {venv}...")
-        proc.run((pythons.get(python_version), "-m", "venv", venv), exit=True)
+        proc.run(
+            (pythons.get(python_version, url, sha256), "-m", "venv", venv),
+            exit=True,
+        )
 
     # Check the python version. If mismatch, then recreate the venv.
     # This helps smooth out the python version upgrade experience.
@@ -107,7 +118,10 @@ def main(context: Dict[str, str], argv: Sequence[str] | None = None) -> int:
         print(f"outdated virtualenv version (python {venv_version})!")
         print("creating a new one...")
         shutil.rmtree(venv)
-        proc.run((pythons.get(python_version), "-m", "venv", venv), exit=True)
+        proc.run(
+            (pythons.get(python_version, url, sha256), "-m", "venv", venv),
+            exit=True,
+        )
 
     print("Resyncing your dev environment.")
 
@@ -126,35 +140,20 @@ def main(context: Dict[str, str], argv: Sequence[str] | None = None) -> int:
     ):
         return 1
 
+    # This is for engineers with existing dev environments transitioning over.
+    # Bootstrap will set devenv-managed volta up but they won't be running
+    # devenv bootstrap, just installing devenv then running devenv sync.
+    # make install-js-dev will fail since our run_procs expects devenv-managed
+    # volta.
+    volta.install()
+
     if not run_procs(
         repo,
         reporoot,
         venv,
         (
             ("javascript dependencies", ("make", "install-js-dev")),
-            (
-                "python dependencies",
-                (
-                    "bash",
-                    "-eu" + ("x" if constants.DEBUG else ""),
-                    "-o",
-                    "pipefail",
-                    "-c",
-                    """
-export PIP_DISABLE_PIP_VERSION_CHECK=on
-
-pip_install='pip install --constraint requirements-dev-frozen.txt'
-$pip_install --upgrade pip setuptools wheel
-
-# pip doesn't do well with swapping drop-ins
-pip uninstall -qqy uwsgi
-
-$pip_install -r requirements-dev-frozen.txt -r requirements-getsentry.txt
-
-SENTRY_LIGHT_BUILD=1 pip install --no-deps -e . -e ../getsentry
-""",
-                ),
-            ),
+            ("python dependencies", ("make", "install-py-dev")),
         ),
     ):
         return 1

@@ -8,7 +8,6 @@ from devenv.constants import homebrew_bin
 from devenv.constants import root
 from devenv.constants import VOLTA_HOME
 from devenv.lib import archive
-from devenv.lib import fs
 from devenv.lib import proc
 
 _version = "1.1.1"
@@ -23,24 +22,26 @@ class UnexpectedPlatformError(Exception):
     pass
 
 
-def install_volta(unpack_into: str) -> None:
+def determine_platform(unpack_into: str) -> str | None:
     system = platform.system()
     if system == "Linux":
         if platform.machine() == "x86_64":
-            name = f"volta-{_version}-linux.tar.gz"
+            return f"volta-{_version}-linux.tar.gz"
         else:
             proc.run(("brew", "install", "volta"), exit=True)
             proc.run(
                 ("sh", "-c", f"ln -sfn {homebrew_bin}/volta* {unpack_into}/"),
                 exit=True,
             )
-            return
+            return None
     elif system == "Darwin":
         suffix = "-aarch64" if platform.machine() == "arm64" else ""
-        name = f"volta-{_version}-macos{suffix}.tar.gz"
+        return f"volta-{_version}-macos{suffix}.tar.gz"
     else:
         raise UnexpectedPlatformError(f"Unexpected OS: {platform.platform()}")
 
+
+def download_and_unpack_archive(name: str, unpack_into: str) -> None:
     url = (
         "https://github.com/volta-cli/volta/releases/download/"
         f"v{_version}/{name}"
@@ -50,29 +51,37 @@ def install_volta(unpack_into: str) -> None:
     archive.unpack(archive_file, unpack_into)
 
 
+def install_volta(unpack_into: str) -> None:
+    name = determine_platform(unpack_into)
+    if name is None:
+        return
+    download_and_unpack_archive(name, unpack_into)
+
+
+def populate_volta_home_with_shims(unpack_into: str) -> None:
+    # executing volta -v will populate the VOLTA_HOME directory
+    # with node/npm/yarn shims
+    proc.run((f"{unpack_into}/volta-migrate",))
+    version = proc.run((f"{unpack_into}/volta", "-v"), stdout=True)
+    assert version == _version, (version, _version)
+
+
 def install() -> None:
     unpack_into = f"{root}/bin"
 
     if (
-        which("volta", path=unpack_into) == f"{unpack_into}/volta"
+        which("volta", path=f"{root}/bin") == f"{root}/bin/volta"
         and which("node", path=f"{VOLTA_HOME}/bin") == f"{VOLTA_HOME}/bin/node"
+        and os.path.exists(f"{root}/bin/node")
+        and os.readlink(f"{root}/bin/node") == f"{VOLTA_HOME}/bin/node"
     ):
         return
 
     install_volta(unpack_into)
+    populate_volta_home_with_shims(unpack_into)
 
-    # executing volta -v will populate the VOLTA_HOME directory
-    # with node/npm/yarn shims
-    proc.run((f"{root}/bin/volta-migrate",))
-    version = proc.run((f"{root}/bin/volta", "-v"), stdout=True)
-    assert version == _version, (version, _version)
     if not os.path.exists(f"{VOLTA_HOME}/bin/node"):
         raise SystemExit("Failed to install volta!")
 
-    fs.idempotent_add(
-        fs.shellrc(),
-        f"""
-export VOLTA_HOME={VOLTA_HOME}
-export PATH="{VOLTA_HOME}/bin:$PATH"
-""",
-    )
+    for executable in ("node", "npm", "npx", "yarn", "pnpm"):
+        os.symlink(f"{VOLTA_HOME}/bin/{executable}", f"{root}/bin/{executable}")

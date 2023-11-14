@@ -3,10 +3,9 @@ from __future__ import annotations
 import argparse
 import configparser
 import os
-import subprocess
-import time
 from collections.abc import Sequence
 from typing import cast
+from typing import Optional
 
 from typing_extensions import TypeAlias
 
@@ -15,7 +14,6 @@ from devenv import doctor
 from devenv import pin_gha
 from devenv import sync
 from devenv.constants import config_root
-from devenv.constants import root
 from devenv.lib.fs import gitroot
 
 ExitCode: TypeAlias = "str | int | None"
@@ -30,32 +28,6 @@ DEFAULT_CONFIG = dict(
 )
 
 
-def self_update(force: bool = False) -> int:
-    fn = f"{root}/last-update"
-    if not os.path.exists(fn):
-        open(fn, mode="a").close()
-
-    if not force:
-        update_age = time.time() - os.path.getmtime(fn)
-        if update_age < 82800:  # 23 hours
-            return 0
-
-    print("Updating devenv tool...")
-    rc = subprocess.call(
-        (
-            f"{root}/venv/bin/python",
-            "-m",
-            "pip",
-            "install",
-            "-U",
-            "git+https://github.com/getsentry/devenv.git@main",
-        )
-    )
-    if rc == 0:
-        os.utime(fn)
-    return rc
-
-
 def initialize_config(config_path: str, defaults: Config) -> None:
     if os.path.exists(config_path):
         # todo: query for any config options not in  the existing config file
@@ -66,7 +38,7 @@ def initialize_config(config_path: str, defaults: Config) -> None:
     for section, values in config.items():
         for var, _val in values.items():
             # typshed doesn't account for `allow_no_value`
-            val = cast(str | None, _val)
+            val = cast(Optional[str], _val)
             if val is None:
                 print(var.strip("# "), end="")
             else:
@@ -93,10 +65,9 @@ def parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(formatter_class=CustomHelpFormat)
     parser.add_argument(
         "command",
-        choices=("update", "bootstrap", "doctor", "sync", "pin-gha"),
+        choices=("bootstrap", "doctor", "sync", "pin-gha"),
         metavar="COMMAND",
         help=f"""\
-update    - force updates devenv (autoupdated on a daily basis)
 bootstrap - {bootstrap.help}
 doctor    - {doctor.help}
 sync      - {sync.help}
@@ -113,11 +84,6 @@ pin-gha   - {pin_gha.help}
 
 def devenv(argv: Sequence[str]) -> ExitCode:
     args, remainder = parser().parse_known_args(argv[1:])
-
-    if args.command == "update":
-        return self_update(force=True)
-
-    self_update()
 
     # generic/standalone tools that do not care about devenv configuration
     if args.command == "pin-gha":
@@ -158,6 +124,15 @@ def devenv(argv: Sequence[str]) -> ExitCode:
 
 def main() -> ExitCode:
     import sys
+
+    import sentry_sdk
+
+    sentry_sdk.init(
+        # https://sentry.sentry.io/settings/projects/sentry-dev-env/keys/
+        dsn="https://9bdb053cb8274ea69231834d1edeec4c@o1.ingest.sentry.io/5723503",
+        # enable performance monitoring
+        enable_tracing=True,
+    )
 
     return devenv(sys.argv)
 
