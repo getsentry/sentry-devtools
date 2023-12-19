@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 import configparser
 import os
 import shutil
@@ -12,9 +11,14 @@ from typing import Tuple
 
 from devenv import constants
 from devenv import pythons
+from devenv.constants import CI
+from devenv.constants import DARWIN
 from devenv.constants import home
 from devenv.constants import MACHINE
+from devenv.constants import SYSTEM_MACHINE
 from devenv.constants import VOLTA_HOME
+from devenv.lib import colima
+from devenv.lib import limactl
 from devenv.lib import proc
 from devenv.lib import volta
 
@@ -80,9 +84,6 @@ Output:
 
 
 def main(context: Dict[str, str], argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=help)
-    parser.parse_args(argv)
-
     repo = context["repo"]
     if repo not in {"sentry", "getsentry"}:
         print(f"repo {repo} not supported yet!")
@@ -146,6 +147,26 @@ def main(context: Dict[str, str], argv: Sequence[str] | None = None) -> int:
     # make install-js-dev will fail since our run_procs expects devenv-managed
     # volta.
     volta.install()
+
+    if DARWIN:
+        # we don't officially support colima on linux yet
+        if CI:
+            # colima 0.6.8 doesn't work with macos-13,
+            # but integration coverage is still handy
+            colima.install(
+                "0.6.2",
+                "darwin_x86_64",
+                "43ef3fc80a8347d51b8ec1706f9caf8863bd8727a6f7532caf1ccd20497d8485",
+            )
+        else:
+            colima.install(
+                repo_config["colima"]["version"],
+                repo_config["colima"][SYSTEM_MACHINE],
+                repo_config["colima"][f"{SYSTEM_MACHINE}_sha256"],
+            )
+
+        # TODO: move limactl version into per-repo config
+        limactl.install()
 
     if not run_procs(
         repo,

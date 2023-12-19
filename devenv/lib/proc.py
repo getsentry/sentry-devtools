@@ -12,9 +12,10 @@ from devenv.constants import home
 from devenv.constants import homebrew_bin
 from devenv.constants import root
 from devenv.constants import shell_path
+from devenv.constants import user_environ
 from devenv.constants import VOLTA_HOME
 
-base_path = f"{VOLTA_HOME}/bin:{homebrew_bin}:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:{root}/bin"
+base_path = f"{root}/bin:{VOLTA_HOME}/bin:{homebrew_bin}:{user_environ['PATH']}"
 base_env = {
     "PATH": base_path,
     "HOME": home,
@@ -89,10 +90,6 @@ def run(
         xtrace(cmd)
     try:
         proc = subprocess_run(cmd, check=True, stdout=_stdout, cwd=cwd, env=env)
-        if _stdout:
-            return proc.stdout.decode().strip()
-        else:
-            return None
     except FileNotFoundError as e:
         # This is reachable if the command isn't found.
         if exit:
@@ -110,3 +107,7 @@ stdout:
             raise SystemExit(detail) from None
         else:
             raise RuntimeError(detail) from None
+    else:
+        if _stdout:
+            return proc.stdout.decode().strip()
+        return None

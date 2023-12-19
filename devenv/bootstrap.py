@@ -4,7 +4,6 @@ import argparse
 import os
 import shutil
 from collections.abc import Sequence
-from pathlib import Path
 
 from typing_extensions import TypeAlias
 
@@ -42,7 +41,7 @@ def main(coderoot: str, argv: Sequence[str] | None = None) -> ExitCode:
     if args.repo not in {"sentry"}:
         return f"repo {args.repo} not supported yet!"
 
-    if shutil.which("xcrun"):
+    if not CI and shutil.which("xcrun"):
         # xcode-select --install will take a while,
         # and involves elevated permissions with a GUI,
         # so best to just let the user go through that separately then retrying,
@@ -50,27 +49,28 @@ def main(coderoot: str, argv: Sequence[str] | None = None) -> ExitCode:
         # There is a way to perform a headless install but it's more complex
         # (refer to how homebrew does it).
         try:
-            git = proc.run(("xcrun", "-f", "git"), stdout=True)
+            _ = proc.run(("xcrun", "-f", "git"), stdout=True)
         except RuntimeError:
             return "Failed to find git. Run xcode-select --install, then re-run bootstrap when done."
-        assert Path(git).name == "git"
 
     github.add_to_known_hosts()
 
     if not EXTERNAL_CONTRIBUTOR and not github.check_ssh_access():
-        is_employee = input("Are you a Sentry employee? (Y/n): ").lower() in {
-            "y",
-            "yes",
-            "",
-        }
-        if not is_employee:
+        is_employee = (
+            False
+            if CI
+            else input("Are you a Sentry employee? (Y/n): ").lower()
+            in {"y", "yes", ""}
+        )
+        if not CI and not is_employee:
             print(
                 "Please set the SENTRY_EXTERNAL_CONTRIBUTOR environment variable and re-run bootstrap."
             )
             return 1
         pubkey = github.generate_and_configure_ssh_keypair()
-        input(
-            f"""
+        if not CI:
+            input(
+                f"""
 Failed to authenticate with an ssh key to GitHub.
 We've generated and configured one for you at ~/.ssh/sentry-github.
 Visit https://github.com/settings/ssh/new and add the following Authentication key:
@@ -82,7 +82,7 @@ and click Configure SSO, for the getsentry organization.
 
 When done, hit ENTER to continue.
 """
-        )
+            )
         while not github.check_ssh_access():
             input(
                 "Still failing to authenticate to GitHub. ENTER to retry, otherwise ^C to quit."
@@ -138,9 +138,10 @@ When done, hit ENTER to continue.
             if DARWIN:
                 # Installing everything from brew takes too much time,
                 # and chromedriver cask flakes occasionally. Really all we need to
-                # set up the devenv is colima. This is also required for arm64 macOS GHA runners.
-                # TODO: pin colima in sentry via vendored formula and install from that
-                proc.run(("brew", "install", "colima", "docker"))
+                # set up the devenv is colima and docker-cli.
+                # This is also required for arm64 macOS GHA runners.
+                # We manage colima, so just need to install docker + qemu here.
+                proc.run(("brew", "install", "docker", "qemu"))
         else:
             proc.run(
                 (f"{homebrew_bin}/brew", "bundle"), cwd=f"{coderoot}/sentry"
