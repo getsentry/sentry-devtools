@@ -26,12 +26,7 @@ user = struct_passwd.pw_name
 user_environ: typing.Mapping[str, str] = os.environ.copy()
 
 home = user_environ["HOME"] if CI else struct_passwd.pw_dir
-cache_root = f"{home}/.cache/sentry-devenv"
-config_root = f"{home}/.config/sentry-devenv"
 root = f"{home}/.local/share/sentry-devenv"
-bin_root = f"{root}/bin"
-src_root = f"{root}/devenv"
-pythons_root = f"{root}/pythons"
 
 homebrew_repo = "/opt/homebrew"
 homebrew_bin = f"{homebrew_repo}/bin"
@@ -39,4 +34,6 @@ if INTEL_MAC:
     homebrew_repo = "/usr/local/Homebrew"
     homebrew_bin = "/usr/local/bin"
 
+# compatibility with devenv <= 1.4.0
+# (used in sentry sync.py)
 VOLTA_HOME = f"{root}/volta"
