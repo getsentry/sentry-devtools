@@ -9,47 +9,16 @@ manage a repository's dev environment.
 
 ## install
 
-Download [this](https://raw.githubusercontent.com/getsentry/devenv/main/install-devenv.sh) and run it:
+Download [this](https://raw.githubusercontent.com/getsentry/devtools/main/install-devenv.sh) and run it:
 
 ```
-bash install-devenv.sh
+bash install-tools.sh
 ```
-
-## user guide
-
-`devenv bootstrap`
-
-This is intended for initial setup. 
-
-
-`devenv fetch [repository name]`
-
-Any repository on github in the form of `[org]/[reponame]`
-
-Repositories are cloned to a "coderoot" directory which is specified in the [global configuration](#configuration).
-
-Note: `sentry` and `ops` are currently special names which perform more complicated installations (e.g., `sentry` will set up both sentry and getsentry)
-
-`devenv sync`
-
-When you're inside a repository, this will bring the dev environment up to date,
-or create it if it doesn't exist.
-It runs `[reporoot]/devenv/sync.py`.
-
-`devenv doctor`
-
-When you're inside a repository, this diagnoses and tries to fix common issues.
-Checks and fixes are defined in `[reporoot]/devenv/checks`.
-
-`devenv nuke|uninstall` (wip)
-
-When you're inside a repository, this completely removes the dev environment.
-
 
 ## technical overview
 
-devenv itself lives in `~/.local/share/sentry-devenv`. Inside:
-- `bin` contains devenv itself and `direnv`
+devtools itself lives in `~/.local/share/sentry-devtools`. Inside:
+- `bin` contains devtools itself and `direnv`
   - this is the only PATH entry needed for devenv
 - a private python and virtualenv used exclusively by `devenv`
 
@@ -65,7 +34,7 @@ fi
 
 PATH_add "${HOME}/.local/share/sentry-devenv/bin"
 
-if ! command -v devenv >/dev/null; then
+if ! command -v devtools >/dev/null; then
     echo "install devenv: https://github.com/getsentry/devenv#install"
     return 1
 fi

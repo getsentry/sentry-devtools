@@ -1,0 +1,90 @@
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+from subprocess import CalledProcessError
+from subprocess import PIPE
+from subprocess import run as subprocess_run
+from typing import TextIO
+from typing import Tuple
+
+from devtools import constants
+from devtools.constants import home
+from devtools.constants import homebrew_bin
+from devtools.constants import root
+from devtools.constants import shell_path
+from devtools.constants import user_environ
+
+base_path = f"{root}/bin:{homebrew_bin}:{user_environ['PATH']}"
+base_env = {"PATH": base_path, "HOME": home, "SHELL": shell_path}
+
+logger = logging.getLogger(__name__)
+
+
+def quote(cmd: tuple[str, ...]) -> str:
+    """convert a command to bash-compatible form"""
+    from pipes import quote
+
+    return " ".join(quote(arg) for arg in cmd)
+
+
+def xtrace(cmd: tuple[str, ...]) -> str:
+    """Print a commandline, similar to how xtrace does."""
+
+    teal = "\033[36m"
+    reset = "\033[m"
+    bold = "\033[1m"
+
+    return f"+ {teal}${reset} {bold}{quote(cmd)}{reset}"
+
+
+class CommandError(SystemExit):
+    def __init__(
+        self, message: str, code: int, out: str | None, err: str | None
+    ):
+        super().__init__(message)
+        self.code = code
+        self.stdout = out
+        self.stderr = err
+
+
+def run(
+    cmd: tuple[str, ...],
+    *,
+    pathprepend: str = "",
+    env: dict[str, str] | None = None,
+    cwd: Path | str | None = None,
+    stdout: TextIO | None = None,
+    stderr: TextIO | None = None,
+) -> Tuple[int, str, str]:
+    if env is None:
+        env = {}
+    env = {**constants.user_environ, **base_env, **env}
+
+    if pathprepend:
+        env["PATH"] = f"{pathprepend}:{env['PATH']}"
+
+    logger.debug(xtrace(cmd))
+    try:
+        proc = subprocess_run(
+            cmd,
+            check=True,
+            cwd=cwd,
+            env=env,
+            stdout=stdout if stdout else PIPE,
+            stderr=stderr if stderr else PIPE,
+        )
+    except FileNotFoundError as e:
+        # This is reachable if the command isn't found.
+        raise SystemExit(f"{e}") from e
+
+    except CalledProcessError as e:
+        out = e.stdout.decode().strip() if e.stdout else None
+        err = e.stderr.decode().strip() if e.stderr else None
+
+        detail = f"Command `{quote(e.cmd)}` failed! (code {e.returncode})"
+        raise CommandError(detail, e.returncode, out, err) from e
+    else:
+        out = proc.stdout.decode().strip() if proc.stdout else None
+        err = proc.stderr.decode().strip() if proc.stderr else None
+        return proc.returncode, out, err

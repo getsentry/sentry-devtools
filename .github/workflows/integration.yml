@@ -30,24 +30,24 @@ jobs:
         "${{ github.event.pull_request && github.head_ref || github.ref_name }}"
     steps:
       - uses: actions/checkout@v4
-      - name: install devenv
+      - name: install devtools
         run: |
           set -u
           : should be able to be run from anywhere:
-          mv install-devenv.sh /tmp
+          mv install-devtools.sh /tmp
           cd /tmp
-          ./install-devenv.sh
+          ./install-devtools.sh
 
       - name: sync
         run: |
           coderoot="${PWD}/ci/integration"
 
-          mkdir -p ~/.config/sentry-devenv
-          cat <<EOF > ~/.config/sentry-devenv/config.ini
+          mkdir -p ~/.config/sentry-devtools
+          cat <<EOF > ~/.config/sentry-devtools/config.ini
           [devenv]
           coderoot = ${coderoot}
           EOF
 
           reporoot="${coderoot}/repo"
           cd "$reporoot"
-          CI_DEVENV_INTEGRATION_FAKE_REPOROOT="$reporoot" devenv sync
+          devtools -h

@@ -5,7 +5,7 @@ import tarfile
 
 import pytest
 
-from devenv.lib import archive
+from devtools.lib import archive
 
 
 @pytest.fixture

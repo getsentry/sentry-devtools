@@ -3,29 +3,28 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sentry_devenv"
+name = "sentry_devtools"
 version = "1.6.2"
 authors = [
   { name="Joshua Li", email="joshua.li@sentry.io" },
   { name="Ian Woodard", email="ian.woodard@sentry.io" },
   { name="Buck Evan", email="buck.evan@sentry.io" },
 ]
-description = "Utilities for setting up a Sentry development environment"
+description = "Utilities for interacting with Sentry repositories"
 readme = "README.md"
 # 3.10 is just for internal pypi compat
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
-  "typing_extensions",
-  "sentry-sdk",
+  "sentry-sdk", "jinja2"
 ]
 
 [tool.setuptools.package-data]
-"devenv" = ["py.typed"]
+"devtools" = ["py.typed"]
 
 [tool.setuptools.packages]
 find = {}
@@ -37,7 +36,7 @@ skip-magic-trailing-comma = true
 
 
 [project.scripts]
-devenv = "devenv.main:main"
+devtools = "devtools.__main__:main"
 
 [tool.mypy]
 python_version = "3.11"

@@ -1,0 +1,15 @@
+""" A set of commands in {{ module }} """
+from __future__ import annotations
+
+from collections.abc import Sequence
+
+from devtools.lib.context import Context
+from devtools.lib.modules import argument
+from devtools.lib.modules import command
+from devtools.lib.modules import ExitCode
+from devtools.lib.modules import ModuleDef
+
+
+module_info = ModuleDef(
+    module_name=__name__, name="{{ module }}", help="{{ help }}"
+)
