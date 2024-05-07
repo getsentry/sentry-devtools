@@ -8,6 +8,7 @@ from collections.abc import Sequence
 import sentry_sdk
 
 from devtools import constants
+from devtools.lib import proc
 from devtools.lib.config import ConfigOpt
 from devtools.lib.config import get_config
 from devtools.lib.config import verify_config
@@ -60,18 +61,18 @@ def devtools(argv: Sequence[str]) -> ExitCode:
 
     logsetup.init(argv)
 
-    # enable readline
-    import readline
-
-    readline.parse_and_bind("tab: complete")
-    readline.parse_and_bind("set editing-mode vi")
-
     if not constants.INTERACTIVE:
         logger.warning("Running in non-interactive mode")
+    else:
+        # enable readline
+        import readline
+
+        readline.parse_and_bind("bind ^I rl_complete")
 
     if not verify_config("devtools", CONFIG_OPTS):
         logger.warning(
-            "Configuration requires init; run `devtools config init`"
+            "Configuration requires init; run %s",
+            proc.xtrace(("devtools", "config", "init")),
         )
         logger.warning("Continuing with defaults...")
 

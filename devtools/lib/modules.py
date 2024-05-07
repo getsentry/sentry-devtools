@@ -6,7 +6,6 @@ import inspect
 import logging
 import os
 import sys
-import textwrap
 from collections.abc import Callable
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -18,24 +17,14 @@ from typing import Tuple
 from typing import TypeAlias
 from typing import TypedDict
 
-from devtools import constants
 from devtools.lib.context import Context
+from devtools.lib.text import word_wrap
 
 ExitCode: TypeAlias = "str | int | None"
 Action: TypeAlias = "Callable[[Context, Sequence[str] | None], ExitCode]"
 ParserFn: TypeAlias = "Callable[[argparse.ArgumentParser], None]"
 
 logger = logging.getLogger(__name__)
-
-
-def _word_wrap(input: str | None) -> str | None:
-    if not input:
-        return input
-
-    output = " ".join(input.split())
-    return "\n".join(
-        textwrap.wrap(output, _clamp(20, 80, constants.TERM_WIDTH))
-    )
 
 
 @dataclass(frozen=True)
@@ -60,17 +49,23 @@ class ModuleAction:
 
         self.action = action
         self.argument_parsers: List[ParserFn] = []
+        self.validators: List[
+            Callable[[Context, Sequence[str] | None], None]
+        ] = []
 
     def __call__(
         self, context: Context, args: Sequence[str] | None
     ) -> ExitCode:
+        for validate in self.validators:
+            validate(context, args)
+
         return self.action(context, args)
 
     def add_argparser(self, fn: ParserFn) -> None:
         self.argument_parsers.append(fn)
 
 
-def command(name: str, help: str) -> Callable[[Action], Action]:
+def command(name: str, help: str = "") -> Callable[[Action], Action]:
     """
     Marks a function as being a CLI command.
     @commmand("commandname", "This command makes cookies")
@@ -84,7 +79,7 @@ def command(name: str, help: str) -> Callable[[Action], Action]:
 
         module_action.name = name
         module_action.help = help
-        module_action.description = _word_wrap(main.__doc__)
+        module_action.description = word_wrap(module_action.action.__doc__)
 
         return module_action
 
@@ -195,12 +190,18 @@ def require(var: str, message: str) -> Callable[[Action], Action]:
     """
 
     def outer(main: Action) -> Action:
-        def inner(context: Context, args: Sequence[str] | None) -> ExitCode:
+        if isinstance(main, ModuleAction):
+            module_action = main
+        else:
+            module_action = ModuleAction(main)
+
+        def validate(context: Context, argv: Sequence[str] | None) -> None:
             if context.get(var) is None:
                 raise SystemExit(message)
-            return main(context, args)
 
-        return inner
+        module_action.validators.append(validate)
+
+        return module_action
 
     return outer
 
@@ -285,14 +286,6 @@ def load_modules(path: str, name: str) -> Sequence[ModuleType]:
     return all_modules
 
 
-def _clamp(min: int, max: int, value: int) -> int:
-    if value < min:
-        return min
-    if value > max:
-        return max
-    return value
-
-
 def _generate_parser(
     modinfo_list: Sequence[DevModuleInfo],
 ) -> argparse.ArgumentParser:
@@ -329,7 +322,7 @@ def _generate_parser(
         child = subparser.add_parser(
             module_name,
             help=module_def.help,
-            description=_word_wrap(info.module.__doc__),
+            description=word_wrap(info.module.__doc__),
             formatter_class=argparse.RawDescriptionHelpFormatter,
         )
 

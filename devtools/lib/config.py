@@ -12,7 +12,7 @@ from typing import TypeAlias
 
 from devtools import constants
 from devtools.constants import MACHINE
-from devtools.lib.ask import single_value
+from devtools.lib.text import single_value
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,15 @@ class ConfigOpt:
 
 
 Config: TypeAlias = "dict[str, str | None]"
+
+
+def get_value(
+    name: str, section: str | None = None, default: str | None = None
+) -> str | None:
+    if not section:
+        section = constants.APP_NAME
+
+    return get_config().get(section, name, fallback=default)
 
 
 def read_config(path: str) -> configparser.ConfigParser:
@@ -114,10 +123,16 @@ def update_config(
             logger.debug("Setting %s.%s to %s", section, opt.name, value)
 
     if needs_save:
-        print("Thank you. Saving answers.")
+        save_config(config_path, config)
 
-        with open(config_path, "w") as f:
-            config.write(f)
+
+def save_config(config_path: str, config: configparser.ConfigParser) -> None:
+    logger.info("Thank you. Saving answers.")
+
+    with open(config_path, "w") as f:
+        config.write(f)
+
+    get_config.cache_clear()
 
 
 def get_repo(reporoot: str) -> configparser.ConfigParser:

@@ -106,11 +106,11 @@ def main(context: Context, argv: Sequence[str] | None = None) -> ExitCode:
 
 
 def fetch(
-    code_root: str, repo: str, auth: bool = True, sync: bool = True
+    workspace: str, repo: str, auth: bool = True, sync: bool = True
 ) -> None:
     org, slug = repo.split("/")
 
-    codepath = f"{code_root}/{slug}"
+    codepath = f"{workspace}/{slug}"
 
     if os.path.exists(codepath):
         print(f"{codepath} already exists")
@@ -134,7 +134,7 @@ def fetch(
         (
             "git",
             "-C",
-            code_root,
+            workspace,
             "cloner",
             "--filter=blob:none",
             "--progress",

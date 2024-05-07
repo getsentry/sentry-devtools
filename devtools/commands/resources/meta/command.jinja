@@ -1,4 +1,12 @@
+
 @command("{{ command }}", help="{{ help }}")
+{%- for arg in arguments %}
+{{ arg }}
+{%-  endfor %}
 def {{command}}(context: Context, argv: Sequence[str] | None) -> ExitCode:
     """ {{ command }} does cool stuff """
-    pass
+    {%- if arguments %}
+    args = context['args']
+    logger.debug("{{ command }} invoked with args %s", args)
+    {%- endif %}
+    return "{{ command }} executed successfully"

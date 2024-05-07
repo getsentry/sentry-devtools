@@ -5,15 +5,14 @@ import sys
 
 import pytest
 
-from devtools.lib.proc import CommandError
-from devtools.lib.proc import run
+from devtools.lib import proc
 
 
 def test_run_with_stdout() -> None:
     cmd = ("echo", "Hello, World!")
     expected_output = "Hello, World!"
 
-    result, out, err = run(cmd)
+    result, out, err = proc.run(cmd)
 
     assert out == expected_output
 
@@ -21,7 +20,7 @@ def test_run_with_stdout() -> None:
 def test_run_without_stdout() -> None:
     cmd = ("echo", "Hello, World!")
 
-    result, out, err = run(cmd, stdout=sys.stdout)
+    result, out, err = proc.run(cmd, stdout=sys.stdout)
 
     assert out is None
 
@@ -35,7 +34,7 @@ def test_run_with_pathprepend(tmp_path: str) -> None:
     cmd = ("dummy_executable",)
     pathprepend = tmp_path
 
-    result, out, err = run(cmd, pathprepend=pathprepend)
+    result, out, err = proc.run(cmd, pathprepend=pathprepend)
 
     assert out == "Hello, World!"
 
@@ -44,14 +43,14 @@ def test_run_command_not_found() -> None:
     cmd = ("invalid_command",)
 
     with pytest.raises(SystemExit):
-        run(cmd)
+        proc.run(cmd)
 
 
 def test_run_with_custom_env() -> None:
     cmd = ("sh", "-c", "printenv VAR1 && printenv VAR2")
     custom_env = {"VAR1": "value1", "VAR2": "value2"}
 
-    result, out, err = run(cmd, env=custom_env)
+    result, out, err = proc.run(cmd, env=custom_env)
 
     assert out == "value1\nvalue2"
 
@@ -63,7 +62,7 @@ def test_run_with_cwd(tmp_path: str) -> None:
     cmd = ("cat", "test.txt")
     cwd = tmp_path
 
-    result, out, err = run(cmd, cwd=cwd)
+    result, out, err = proc.run(cmd, cwd=cwd)
 
     assert out == text
 
@@ -71,5 +70,5 @@ def test_run_with_cwd(tmp_path: str) -> None:
 def test_run_command_failed() -> None:
     cmd = ("ls", "nonexistent_directory")
 
-    with pytest.raises(CommandError):
-        run(cmd)
+    with pytest.raises(proc.CommandError):
+        proc.run(cmd)

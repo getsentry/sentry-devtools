@@ -44,7 +44,7 @@ jobs:
 
           mkdir -p ~/.config/sentry-devtools
           cat <<EOF > ~/.config/sentry-devtools/config.ini
-          [devenv]
+          [devtools]
           coderoot = ${coderoot}
           EOF
 

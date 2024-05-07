@@ -88,13 +88,23 @@ parseopt() {  # argument (and environment-var) processing
   appname="sentry-devtools"
 
   # used to control install behavior for CI
-  SNTY_DEVTOOLS_SOURCE="${SNTY_DEVTOOLS_SOURCE:-https://github.com/getsentry/devtools.git}"
+  SNTY_DEVTOOLS_SOURCE="${SNTY_DEVTOOLS_SOURCE:-https://github.com/getsentry/sentry-devtools.git}"
   SNTY_DEVTOOLS_BRANCH="${1:-${SNTY_DEVTOOLS_BRANCH:-main}}"
 
   SNTY_DEVTOOLS_HOME="${SNTY_DEVTOOLS_HOME:-$XDG_DATA_HOME/$appname}"
   SNTY_DEVTOOLS_CACHE="${SNTY_DEVTOOLS_CACHE:-$XDG_CACHE_HOME/$appname}"
   SNTY_DEVTOOLS_PY_RELEASE="${SNTY_DEVTOOLS_PY_RELEASE:-20230726}"
   SNTY_DEVTOOLS_PY_VERSION="${SNTY_DEVTOOLS_PY_VERSION:-3.11.4}"
+
+  cat <<EOF
+SNTY_DEVTOOLS_SOURCE="${SNTY_DEVTOOLS_SOURCE:-https://github.com/getsentry/sentry-devtools.git}"
+SNTY_DEVTOOLS_BRANCH="${1:-${SNTY_DEVTOOLS_BRANCH:-main}}"
+
+SNTY_DEVTOOLS_HOME="${SNTY_DEVTOOLS_HOME:-$XDG_DATA_HOME/$appname}"
+SNTY_DEVTOOLS_CACHE="${SNTY_DEVTOOLS_CACHE:-$XDG_CACHE_HOME/$appname}"
+SNTY_DEVTOOLS_PY_RELEASE="${SNTY_DEVTOOLS_PY_RELEASE:-20230726}"
+SNTY_DEVTOOLS_PY_VERSION="${SNTY_DEVTOOLS_PY_VERSION:-3.11.4}"
+EOF
 }
 
 # translate from uname output to indygreg release tags:
@@ -175,13 +185,17 @@ main() {
   devtools_venv="$SNTY_DEVTOOLS_HOME/venv"
   devtools_python="$SNTY_DEVTOOLS_HOME/python/bin/python3"
 
+  if [[ "${SNTY_DRY_RUN:-}" != "" ]]; then
+    exit
+  fi
+
   info "Installing dependencies..."
   install_python "$SNTY_DEVTOOLS_PY_RELEASE" "$SNTY_DEVTOOLS_PY_VERSION"
 
   show "$devtools_python" -m venv --clear "$devtools_venv"
 
   if [[ $SNTY_DEVTOOLS_SOURCE == https:* ]]; then
-    show "$devtools_venv"/bin/pip install "git+$SNTY_DEVTOOLS_REPO@$SNTY_DEVTOOLS_BRANCH"
+    show "$devtools_venv"/bin/pip install "git+$SNTY_DEVTOOLS_SOURCE@$SNTY_DEVTOOLS_BRANCH"
   elif [[ -e $SNTY_DEVTOOLS_SOURCE ]]; then
     show "$devtools_venv"/bin/pip install -e "$SNTY_DEVTOOLS_SOURCE"
   else
@@ -193,7 +207,7 @@ main() {
   rm -rf "$devtools_bin"
   mkdir -p "$devtools_bin"
   ln -sfn "$devtools_venv/bin/devtools" "$devtools_bin/"
-  info "devtools installed, at: $devtools_bin/devtools\n"
+  info "devtools installed at: $devtools_bin/devtools\n"
 
   export="export PATH=\"$devtools_bin:\$PATH\""
   if [[ -e ~/.zshrc ]] && grep -qFx "$export" ~/.zshrc; then
@@ -210,9 +224,7 @@ main() {
   fi
 
   ## fin
-  info "All done!"
-  : start a new login shell, to get fresh env:
-  show "$SHELL" -l
+  info "All done! Start a new shell to use devtools."
 }
 
 if [[ "$ME" = "install-devtools.sh" ]]; then

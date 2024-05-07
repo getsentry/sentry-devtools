@@ -5,7 +5,7 @@ import logging
 import sys
 from collections.abc import Sequence
 
-from devtools.internal.colors import colors
+from devtools.lib.text import colors
 
 logger = logging.getLogger("devtools")
 logger.setLevel(logging.WARNING)

@@ -77,12 +77,13 @@ def show_config(
 
 @command("rm", "Remove configuration")
 def rm_config(context: Context, argv: Sequence[str] | None = None) -> ExitCode:
-    os.remove(constants.config)
+    if os.path.exists(constants.config):
+        os.remove(constants.config)
     return 0
 
 
 module_info = ModuleDef(
     module_name=__name__,
     name="config",
-    help="View or update your devenv configuration",
+    help="View or update your devtools configuration",
 )

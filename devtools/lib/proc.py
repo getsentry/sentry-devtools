@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
 from subprocess import CalledProcessError
 from subprocess import PIPE
@@ -14,6 +15,7 @@ from devtools.constants import homebrew_bin
 from devtools.constants import root
 from devtools.constants import shell_path
 from devtools.constants import user_environ
+from devtools.lib import text
 
 base_path = f"{root}/bin:{homebrew_bin}:{user_environ['PATH']}"
 base_env = {"PATH": base_path, "HOME": home, "SHELL": shell_path}
@@ -21,21 +23,18 @@ base_env = {"PATH": base_path, "HOME": home, "SHELL": shell_path}
 logger = logging.getLogger(__name__)
 
 
-def quote(cmd: tuple[str, ...]) -> str:
+def quote(cmd: Sequence[str]) -> str:
     """convert a command to bash-compatible form"""
     from pipes import quote
 
     return " ".join(quote(arg) for arg in cmd)
 
 
-def xtrace(cmd: tuple[str, ...]) -> str:
+def xtrace(cmd: Sequence[str]) -> str:
     """Print a commandline, similar to how xtrace does."""
-
-    teal = "\033[36m"
-    reset = "\033[m"
-    bold = "\033[1m"
-
-    return f"+ {teal}${reset} {bold}{quote(cmd)}{reset}"
+    return "".join(
+        (text.decoration_sty("$"), " ", text.colors.bold(quote(cmd)))
+    )
 
 
 class CommandError(SystemExit):
@@ -49,7 +48,7 @@ class CommandError(SystemExit):
 
 
 def run(
-    cmd: tuple[str, ...],
+    cmd: Sequence[str],
     *,
     pathprepend: str = "",
     env: dict[str, str] | None = None,
