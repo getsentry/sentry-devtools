@@ -100,6 +100,7 @@ def banner(
     padding_color: str = colors.cyan,
     message_color: str = header_sty,
 ) -> str:
+    """ Return a banner string """
     width = _clamp(20, 80, constants.TERM_WIDTH)
     pad_width = int((width - len(message)) / 2 - 1)
     if pad_width < 0:
@@ -115,6 +116,7 @@ def single_value(
     description: str | None = None,
     default_value: str | None = None,
 ) -> str | None:
+    """ Get a single input value """
     if not constants.INTERACTIVE:
         return default_value
 
@@ -161,6 +163,7 @@ def multi_value(
     default_values: Sequence[str] | None = None,
     auto_complete: Sequence[str] | None = None,
 ) -> Sequence[str] | None:
+    """ Get multiple text responses for a prompt """
     if not constants.INTERACTIVE:
         return default_values
 
@@ -194,6 +197,7 @@ def yes(
     description: str | None = None,
     default_value: bool | None = None,
 ) -> bool | None:
+    """ Ask a yes/no question """
     if not constants.INTERACTIVE:
         if default_value:
             return default_value

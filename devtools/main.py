@@ -13,11 +13,11 @@ from devtools.lib.config import ConfigOpt
 from devtools.lib.config import get_config
 from devtools.lib.config import verify_config
 from devtools.lib.context import Context
-from devtools.lib.fs import gitroot
 from devtools.lib.modules import CommandLoader
 from devtools.lib.modules import ExitCode
 from devtools.lib.modules import ModuleAction
 from devtools.lib.proc import CommandError
+from devtools.lib.repository import gitroot
 from devtools.lib.repository import Repository
 
 logger = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ def devtools(argv: Sequence[str]) -> ExitCode:
     )
 
     loader = CommandLoader()
-    loader.add_source("devtools.commands", workspace, ".devtools/commands")
+    loader.add_source("devtools.usercommands", workspace, ".devtools/commands")
     loader.add_source(
         "devtools.commands", sys.modules[__package__].__path__[0], "commands"
     )
@@ -101,9 +101,14 @@ def devtools(argv: Sequence[str]) -> ExitCode:
     current_root = _default_current_root()
     if current_root:
         loader.add_source(
-            "devtools.usercommands",
+            "devtools.repocommands",
             Repository.from_root_path(current_root).config_path,
             "usercommands",
+        )
+        loader.add_source(
+            "devtools.repocommands",
+            Repository.from_root_path(current_root).config_path,
+            "commands",
         )
 
     parser = loader.get_argument_parser()
@@ -125,7 +130,9 @@ def devtools(argv: Sequence[str]) -> ExitCode:
     commands: dict[str, ModuleAction] = {
         command.name: command for command in modinfo.commands
     }
-    command_name = getattr(args, "subcommand", None) or args.command
+
+    # Find the command based on supplied subcommand, or assumed default from the base module name
+    command_name = getattr(args, "subcommand", None) or args.command.split('.')[-1]
     command = commands.get(command_name)
 
     assert command is not None
@@ -143,3 +150,4 @@ def main() -> ExitCode:
     except CommandError as ce:
         logger.error("Error while executing", exc_info=ce)
         raise ce
+

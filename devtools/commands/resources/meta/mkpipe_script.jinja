@@ -1,0 +1,31 @@
+#!/bin/sh    # python
+"true" '''\'
+SNTY_PEXECPATH="$(dirname "$(readlink -f "$0")")"/{{ interpreter }}
+if [ ! -x $SNTY_PEXECPATH ]; then
+    echo "python interpreter not found; run devenv sync"
+    exit -1
+fi
+exec $SNTY_PEXECPATH "$0" "$@"
+'''
+from __future__ import annotations
+
+import json
+import logging
+import sys
+
+logger = logging.getLogger(__name__)
+
+def run(data):
+    return data
+
+def main():
+    if sys.stdin.isatty() or sys.stdout.isatty():
+        raise SystemExit("This script is intended to be invoked as a JSON pipe")
+
+    req = json.load(sys.stdin)
+    res = run(req)
+    json.dump(res, sys.stdout)
+
+
+if __name__ == '__main__':
+    main()

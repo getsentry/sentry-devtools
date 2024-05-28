@@ -17,6 +17,7 @@ from typing import Tuple
 from typing import TypeAlias
 from typing import TypedDict
 
+from devtools.lib import text
 from devtools.lib.context import Context
 from devtools.lib.text import word_wrap
 
@@ -36,6 +37,7 @@ class ModuleDef:
 
 @dataclass(frozen=True)
 class DevModuleInfo:
+    package: str
     module: ModuleType
     module_def: ModuleDef
     commands: Sequence[ModuleAction]
@@ -170,6 +172,7 @@ def argument(
 
 
 def argument_fn(fn: ParserFn) -> Callable[[Action], Action]:
+    """ Decorator to provide argparse generator functions for a command """
     def wrap(main: Action) -> Action:
         if isinstance(main, ModuleAction):
             module_action = main
@@ -210,6 +213,11 @@ require_repo = require("repo", "This devtool requires a repository")
 
 
 def find_resource(command: Action, name: str) -> str:
+    """ Search the command's `resources` directory for files
+
+    The resources directory is located next to the source
+    module for the supplied command.
+    """
     if isinstance(command, ModuleAction):
         command = getattr(command, "action", command)
 
@@ -218,16 +226,31 @@ def find_resource(command: Action, name: str) -> str:
     assert module.__file__ is not None
 
     directory = os.path.dirname(module.__file__)
-    filepath = os.path.normpath(
-        os.path.join(
-            directory, "resources", module.__name__.split(".")[-1], name
-        )
+    resource_path = os.path.normpath(
+        os.path.join(directory, "resources", module.__name__.split(".")[-1])
     )
 
-    return filepath
+    # Action specific -- preferable
+    filename1 = os.path.join(
+        resource_path, f"{resource_path}/{command.__name__}_{name}"
+    )  # todo: should this be command or fn name?
+    if os.path.exists(filename1):
+        logger.debug("Located resource %s at %s", name, filename1)
+        return filename1
+
+    # Module name
+    filename2 = os.path.join(resource_path, f"{resource_path}/{name}")
+    if os.path.exists(filename2):
+        logger.debug("Located resource %s at %s", name, filename2)
+        return filename2
+
+    raise FileNotFoundError(
+        f"Could not find resource; tried {filename1} and {filename2}"
+    )
 
 
 def get_actions(module: ModuleType) -> Sequence[ModuleAction]:
+    """ Return a list of actions found on a module """
     return [
         action
         for name, action in inspect.getmembers(
@@ -236,24 +259,17 @@ def get_actions(module: ModuleType) -> Sequence[ModuleAction]:
     ]
 
 
-def module_info(module: ModuleType) -> DevModuleInfo:
+def module_info(module: ModuleType, package: str) -> DevModuleInfo:
     info = module.module_info
     return DevModuleInfo(
-        module=module, module_def=info, commands=get_actions(module)
+        module=module, module_def=info, commands=get_actions(module), package=package
     )
 
 
 def load_modules(path: str, name: str) -> Sequence[ModuleType]:
+    """ Load Python modules from `path` under package name `name` """
     if not os.path.exists(path):
         return []
-
-    if name in sys.modules:
-        package = sys.modules[name]
-    else:
-        package = importlib.import_module(name)
-
-    if path not in package.__path__:
-        package.__path__.append(path)
 
     all_modules = []
 
@@ -289,6 +305,10 @@ def load_modules(path: str, name: str) -> Sequence[ModuleType]:
 def _generate_parser(
     modinfo_list: Sequence[DevModuleInfo],
 ) -> argparse.ArgumentParser:
+    """ Generate the argparse parser for modules """
+
+    modinfo_list = sorted(modinfo_list, key=lambda x: x.module_def.name)
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -319,9 +339,10 @@ def _generate_parser(
             module_name = module_def.module_name
         visited.add(module_name)
 
+        package_text = text.extra_sty(f"({info.package})")
         child = subparser.add_parser(
             module_name,
-            help=module_def.help,
+            help=f"{module_def.help} {package_text}",
             description=word_wrap(info.module.__doc__),
             formatter_class=argparse.RawDescriptionHelpFormatter,
         )
@@ -393,7 +414,7 @@ class CommandLoader:
 
     def _load_modules(self, path: str, package: str) -> List[DevModuleInfo]:
         return [
-            module_info(module)
+            module_info(module, package)
             for module in load_modules(path, package)
             if hasattr(module, "module_info")
         ]

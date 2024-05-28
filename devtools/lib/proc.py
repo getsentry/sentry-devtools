@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 from subprocess import CalledProcessError
@@ -55,7 +56,9 @@ def run(
     cwd: Path | str | None = None,
     stdout: TextIO | None = None,
     stderr: TextIO | None = None,
+    input: str | None = None,
 ) -> Tuple[int, str, str]:
+    """Wraps command invocation with a small amount of logging"""
     if env is None:
         env = {}
     env = {**constants.user_environ, **base_env, **env}
@@ -72,6 +75,7 @@ def run(
             env=env,
             stdout=stdout if stdout else PIPE,
             stderr=stderr if stderr else PIPE,
+            input=input.encode("utf-8") if input else None,
         )
     except FileNotFoundError as e:
         # This is reachable if the command isn't found.
@@ -87,3 +91,11 @@ def run(
         out = proc.stdout.decode().strip() if proc.stdout else None
         err = proc.stderr.decode().strip() if proc.stderr else None
         return proc.returncode, out, err
+
+
+def invoke_pipe(script: Sequence[str], data: str) -> str:
+    """Executes a script with parameters passed via a strings"""
+    ret, out, _ = run(script, stderr=sys.stderr, input=data)
+    if ret != 0:
+        raise SystemExit("Pipe command returned non-zero status")
+    return out

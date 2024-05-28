@@ -10,6 +10,7 @@ import pytest
 
 from devtools.lib import fs
 from devtools.lib import proc
+from devtools.lib import repository
 from tests.utils import chdir
 
 
@@ -17,15 +18,15 @@ def test_gitroot(tmp_path: pathlib.Path) -> None:
     subprocess.run(("git", "init", f"{tmp_path}"))
 
     with chdir(tmp_path):
-        assert os.path.samefile(tmp_path, fs.gitroot())
-        assert os.path.isdir(f"{fs.gitroot()}/.git")
+        assert os.path.samefile(tmp_path, repository.gitroot())
+        assert os.path.isdir(f"{repository.gitroot()}/.git")
 
 
 def test_gitroot_cd(tmp_path: pathlib.Path) -> None:
     subprocess.run(("git", "init", f"{tmp_path}"))
     os.mkdir(f"{tmp_path}/foo")
 
-    _gitroot = fs.gitroot(path=f"{tmp_path}/foo")
+    _gitroot = repository.gitroot(path=f"{tmp_path}/foo")
     assert os.path.samefile(f"{tmp_path}", _gitroot)
     assert os.path.isdir(f"{_gitroot}/.git")
 
@@ -33,7 +34,7 @@ def test_gitroot_cd(tmp_path: pathlib.Path) -> None:
 def test_no_gitroot(tmp_path: pathlib.Path) -> None:
     with pytest.raises(proc.CommandError):
         with chdir(tmp_path):
-            fs.gitroot()
+            repository.gitroot()
 
 
 def test_idempotent_add(tmp_path: pathlib.Path) -> None:

@@ -146,3 +146,13 @@ def test_to_decorator() -> None:
         args.to_decorator("[-d, --dog (beef|lamb)]")
         == "@argument(\"-d\", \"--dog\", choices=['beef', 'lamb'], required=False)"
     )
+
+
+def test_to_argparse() -> None:
+    assert args.to_argparse("[-d, --dog (beef|lamb)]") == [
+        "'-d'",
+        "'--dog'",
+        "choices=['beef', 'lamb']",
+        "help=\"Must be one of ['beef', 'lamb']\"",
+        "required=False",
+    ]

@@ -2,6 +2,9 @@
 __pycache__/
 venv/
 build/
+.idea/
+
+.venv-*/
 
 # dirty hacks
 trash/

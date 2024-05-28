@@ -135,7 +135,7 @@ def fetch(
             "git",
             "-C",
             workspace,
-            "cloner",
+            "clone",
             "--filter=blob:none",
             "--progress",
             *additional_args,

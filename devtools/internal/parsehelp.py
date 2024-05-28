@@ -193,6 +193,35 @@ class ArgArgs(TypedDict):
     action: NotRequired[str]
 
 
+def to_argparse(spec: str) -> Sequence[str]:
+    spec = spec.strip(" ")
+    parser = Parser(spec)
+
+    parser.start()
+
+    body = []
+    body.extend([f"'{arg}'" for arg in parser.args])
+
+    if parser.help:
+        body.append(f'help="{parser.help}"')
+
+    if parser.meta:
+        body.append(f'metavar="{parser.meta}"')
+
+        if not [n for n in parser.args if n.startswith("--")]:
+            body.append(f'dest="{parser.meta}"')
+
+    if parser.choices:
+        body.append(f"choices={parser.choices}")
+        if not parser.help:
+            body.append(f'help="Must be one of {parser.choices}"')
+
+    if parser.type == "option":
+        body.append(f"required={parser.required}")
+
+    return body
+
+
 def to_decorator(spec: str) -> str:
     spec = spec.strip(" ")
     parser = Parser(spec)

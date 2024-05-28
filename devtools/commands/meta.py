@@ -10,14 +10,15 @@ from collections.abc import Sequence
 from devtools.internal.parsehelp import ParseError
 from devtools.internal.parsehelp import to_decorator
 from devtools.lib import fs
+from devtools.lib import jinja
 from devtools.lib import proc
 from devtools.lib import text
 from devtools.lib.context import Context
-from devtools.lib.jinja import get_env
 from devtools.lib.modules import argument
 from devtools.lib.modules import command
 from devtools.lib.modules import ExitCode
 from devtools.lib.modules import ModuleDef
+from devtools.lib.modules import require_repo
 
 module_info = ModuleDef(
     module_name=__name__, name="meta", help="devtools devtools commands"
@@ -26,9 +27,9 @@ module_info = ModuleDef(
 logger = logging.getLogger(__name__)
 
 
-@command("create", help="Create a new command")
+@command("mkcommand", help="Create a new command module")
 @argument("-l", "--local", required=False, help="Create a local command")
-def create(context: Context, argv: Sequence[str] | None) -> ExitCode:
+def mkcommand(context: Context, argv: Sequence[str] | None) -> ExitCode:
     """Create a new devtools command from templates"""
     args = context["args"]
 
@@ -60,7 +61,7 @@ def create(context: Context, argv: Sequence[str] | None) -> ExitCode:
 
     module_help = text.single_value("Module help")
 
-    env = get_env(create)
+    env = jinja.get_env(mkcommand)
     output = []
 
     template = env.get_template("module.jinja")
@@ -87,7 +88,7 @@ def create(context: Context, argv: Sequence[str] | None) -> ExitCode:
         while True:
             argspec = text.single_value(
                 "  Argument",
-                description=f"Argument for {command} e.g., '-b <bar>'; leave blank to end",
+                description=f"Argument for {command} e.g., '-b <bar>' or '[--foo]'; leave blank to end",
             )
             if not argspec:
                 break
@@ -113,13 +114,21 @@ def create(context: Context, argv: Sequence[str] | None) -> ExitCode:
     return 0
 
 
-@command("show")
+@command("show", help="Provides details about the top-level command modules")
+@argument("-m", var="module", required=False)
 def show(context: Context, argv: Sequence[str] | None) -> ExitCode:
-    loader = context["loader"]
+    args = context['args']
+    loader = context['loader']
     bullet = text.decoration_sty("*")
-    for m in loader.modules:
+
+    modules = loader.modules
+    if args.module:
+        modules = [module for module in modules if module.module_def.name.startswith(args.module)]
+
+    for m in modules:
         print(text.banner(m.module_def.module_name))
         print(f"{bullet} {text.label_sty('File')} {m.module.__file__}")
+        print(f"{bullet} {text.label_sty('Package')} {m.package}")
         print(f"{bullet} {text.label_sty('Name')} {m.module_def.name}")
         print(f"{bullet} {text.label_sty('Help')} {m.module_def.help}")
         print()
@@ -183,6 +192,12 @@ def get_version() -> str:
     return my_version
 
 
+@command("version", help="Display the version and exit")
+def version(context: Context, argv: Sequence[str] | None) -> ExitCode:
+    print("".join([text.label_sty("Version: "), get_version()]))
+    return 0
+
+
 @command("update", help="Update devtools")
 def update(context: Context, argv: Sequence[str] | None) -> ExitCode:
     get_version()
@@ -236,3 +251,63 @@ def update(context: Context, argv: Sequence[str] | None) -> ExitCode:
         print(text.status_sty("Done"))
 
         return 0
+
+
+@command(
+    "mkpipe", help="Make a venv script for JSON-pipe invocation with devtools"
+)
+@argument("name")
+@argument(
+    "-e",
+    "--env",
+    help="Specific virtual environment if multiple are available",
+    required=False,
+)
+@require_repo
+def mkpipe(context: Context, argv: Sequence[str] | None) -> ExitCode:
+    args = context["args"]
+    repo = context["repo"]
+
+    assert repo is not None
+    os.makedirs(repo.script_path(), exist_ok=True)
+
+    script_name = args.name
+    if not script_name.endswith(".py"):
+        script_name = f"{script_name}.py"
+
+    target = os.path.join(repo.script_path(), script_name)
+    if os.path.exists(target):
+        if not text.yes(
+            "Overwrite?",
+            description=f"File exists at {target}",
+            default_value=False,
+        ):
+            return 0
+
+    venvs = repo.find_venvs()
+    if not venvs:
+        raise SystemExit("No virtual env found")
+
+    if len(venvs) > 2 and not args.env:
+        print(f"Multiple virtual environments found: {venvs}")
+        raise SystemExit("Target environment needs to be specified with --env")
+
+    if args.env and args.env not in venvs:
+        raise SystemExit(
+            f"Specified environment {args.env} not known; found: {venvs}"
+        )
+
+    venv = args.env if args.env else venvs[0]
+    interpreter = os.path.join(repo.get_venv(venv), "bin", "python")
+
+    jenv = jinja.get_env(mkpipe)
+    output = []
+
+    template = jenv.get_template("script.jinja")
+    output.append(template.render(interpreter=interpreter))
+
+    logger.info("Creating %s using env:%s", target, venv)
+    with open(target, "w") as f:
+        f.write("".join(output))
+    os.chmod(target, 0o755)
+    return 0

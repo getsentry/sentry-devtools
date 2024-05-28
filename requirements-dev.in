@@ -2,3 +2,7 @@ mypy
 pytest
 pre-commit
 black
+
+jinja2
+jsonnet
+sentry-sdk
