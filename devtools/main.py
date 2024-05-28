@@ -13,11 +13,11 @@ from devtools.lib.config import ConfigOpt
 from devtools.lib.config import get_config
 from devtools.lib.config import verify_config
 from devtools.lib.context import Context
-from devtools.lib.fs import gitroot
 from devtools.lib.modules import CommandLoader
 from devtools.lib.modules import ExitCode
 from devtools.lib.modules import ModuleAction
 from devtools.lib.proc import CommandError
+from devtools.lib.repository import gitroot
 from devtools.lib.repository import Repository
 
 logger = logging.getLogger(__name__)

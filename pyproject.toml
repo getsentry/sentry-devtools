@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sentry_devtools"
-version = "1.6.2"
+version = "0.0.3"
 authors = [
   { name="Joshua Li", email="joshua.li@sentry.io" },
   { name="Ian Woodard", email="ian.woodard@sentry.io" },
@@ -20,7 +20,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-  "sentry-sdk", "jinja2"
+  "sentry-sdk", "jinja2", "jsonnet"
 ]
 
 [tool.setuptools.package-data]

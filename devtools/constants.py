@@ -17,6 +17,9 @@ SHELL_UNSET = "(SHELL unset)"
 SYSTEM_MACHINE = f"{SYSTEM}_{MACHINE}"
 
 APP_NAME = "devtools"
+APP_DOT_DIR = f".{APP_NAME}"
+APP_FULLNAME = f"sentry-{APP_NAME}"
+
 APP_DIR = f".{APP_NAME}"
 
 try:
@@ -39,9 +42,8 @@ user_environ: typing.Mapping[str, str] = os.environ.copy()
 
 home = user_environ["HOME"] if CI else struct_passwd.pw_dir
 
-root = os.path.normpath(
-    os.path.expanduser("~/.local/share/sentry-devtools/")
-)  # todo: dubious
+root = os.path.join(os.path.expanduser("~/.local/share/"), APP_FULLNAME)
+
 config = os.getenv("CONFIG_PATH", os.path.join(root, "config.ini"))
 
 homebrew_repo = "/opt/homebrew"

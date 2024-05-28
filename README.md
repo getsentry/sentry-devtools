@@ -2,10 +2,32 @@
 
 ## install
 
+### default - global
 Download [this](https://raw.githubusercontent.com/getsentry/sentry-devtools/main/install-devtools.sh) and run it:
 
 ```
-bash install-tools.sh
+bash install-devtools.sh
+```
+### global for edit
+
+```shell
+git clone https://github.com/getsentry/sentry-devtools
+SNTY_DEVTOOLS_SOURCE=`pwd`/sentry-devtools bash sentry-devtools/install-devtools.sh
+```
+
+### local dev -- not global
+```shell
+git clone https://github.com/getsentry/sentry-devtools
+cd sentry-devtools
+devenv sync
+direnv allow
+pip install -e .
+```
+
+## upgrade -- default global install
+
+```shell
+devtools meta update
 ```
 
 ## technical overview

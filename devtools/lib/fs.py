@@ -10,12 +10,10 @@ import tempfile
 import urllib.parse
 import urllib.request
 from collections.abc import Iterator
-from functools import lru_cache
 from urllib.error import HTTPError
 
 from devtools.constants import home
 from devtools.constants import shell
-from devtools.lib import proc
 from devtools.lib import text
 
 logger = logging.getLogger(__name__)
@@ -29,18 +27,6 @@ def shellrc() -> str:
     if shell == "fish":
         return f"{home}/.config/fish/config.fish"
     raise NotImplementedError(f"unsupported shell: {shell}")
-
-
-@lru_cache
-def _gitroot(path: str) -> str:
-    code, stdout, stderr = proc.run(
-        ("git", "-C", path, "rev-parse", "--show-cdup")
-    )
-    return os.path.normpath(os.path.join(path, stdout))
-
-
-def gitroot(path: str = "") -> str:
-    return _gitroot(path or os.getcwd())
 
 
 def idempotent_add(filepath: str, text: str, trim: bool = True) -> None:
@@ -158,7 +144,7 @@ def retrieve_file(url: str, path: str, sha256: str | None = None) -> None:
     try:
         urllib.request.urlretrieve(url, path, reporthook=reporter)
     except HTTPError as e:
-        raise RuntimeError(f"Error getting {url}: {e}")
+        raise SystemExit(f"Error getting {url}: {e}")
 
     if sha256:
         other256 = checksum(path)

@@ -218,13 +218,27 @@ def find_resource(command: Action, name: str) -> str:
     assert module.__file__ is not None
 
     directory = os.path.dirname(module.__file__)
-    filepath = os.path.normpath(
-        os.path.join(
-            directory, "resources", module.__name__.split(".")[-1], name
-        )
+    resource_path = os.path.normpath(
+        os.path.join(directory, "resources", module.__name__.split(".")[-1])
     )
 
-    return filepath
+    # Action specific -- preferable
+    filename1 = os.path.join(
+        resource_path, f"{resource_path}/{command.__name__}_{name}"
+    )  # todo: should this be command or fn name?
+    if os.path.exists(filename1):
+        logger.debug("Located resource %s at %s", name, filename1)
+        return filename1
+
+    # Module name
+    filename2 = os.path.join(resource_path, f"{resource_path}/{name}")
+    if os.path.exists(filename2):
+        logger.debug("Located resource %s at %s", name, filename2)
+        return filename2
+
+    raise FileNotFoundError(
+        f"Could not find resource; tried {filename1} and {filename2}"
+    )
 
 
 def get_actions(module: ModuleType) -> Sequence[ModuleAction]:
